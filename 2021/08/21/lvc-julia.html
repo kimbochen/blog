@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="twitter:card" content="summary_large_image" /><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Local Value Canonicalization in Julia | Kimbo Chen</title>
+<meta name="generator" content="Jekyll v4.1.1" />
+<meta property="og:title" content="Local Value Canonicalization in Julia" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="This is an article explaining my interpretation and implementation of local value numbering, a compiler optimization technique." />
+<meta property="og:description" content="This is an article explaining my interpretation and implementation of local value numbering, a compiler optimization technique." />
+<link rel="canonical" href="https://kimbochen.github.io/blog/2021/08/21/lvc-julia.html" />
+<meta property="og:url" content="https://kimbochen.github.io/blog/2021/08/21/lvc-julia.html" />
+<meta property="og:site_name" content="Kimbo Chen" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-08-21T00:00:00-05:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Local Value Canonicalization in Julia" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2021-08-21T00:00:00-05:00","datePublished":"2021-08-21T00:00:00-05:00","description":"This is an article explaining my interpretation and implementation of local value numbering, a compiler optimization technique.","headline":"Local Value Canonicalization in Julia","mainEntityOfPage":{"@type":"WebPage","@id":"https://kimbochen.github.io/blog/2021/08/21/lvc-julia.html"},"url":"https://kimbochen.github.io/blog/2021/08/21/lvc-julia.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/blog/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="https://kimbochen.github.io/blog/feed.xml" title="Kimbo Chen" /><link rel="shortcut icon" type="image/x-icon" href="/blog/images/favicon.ico"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Primer/15.2.0/primer.css" integrity="sha512-xTz2ys4coGAOz8vuV1NcQBkgVmKhsSEtjbqyMJbBHRplFuvKIUo6xhLHpAyPt9mfR6twHJgn9OgVLuqOvjeBhg==" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" integrity="sha512-1PKOgIY59xJ8Co8+NE6FZ+LOAZKjy+KY8iq0G4B3CyeY6wYHN3yt9PW0XpSriVlkMXe40PTKnXrLnZ9+fkDaog==" crossorigin="anonymous" />
+
+<script>
+function wrap_img(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll(".post img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("title") && (el.className != "emoji")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("title"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+    } else { document.addEventListener('DOMContentLoaded', fn); }
+}
+window.onload = wrap_img;
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+    // add link icon to anchor tags
+    var elem = document.querySelectorAll(".anchor-link")
+    elem.forEach(e => (e.innerHTML = '<i class="fas fa-link fa-xs"></i>'));
+    });
+</script>
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/blog/">Kimbo Chen</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/blog/about/">About Me</a><a class="page-link" href="/blog/search/">Search</a><a class="page-link" href="/blog/categories/">Tags</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Local Value Canonicalization in Julia</h1><p class="post-meta post-meta-title"><time class="dt-published" datetime="2021-08-21T00:00:00-05:00" itemprop="datePublished">
+        Aug 21, 2021
+      </time>
+       • <span class="read-time" title="Estimated read time">
+    
+    
+      6 min read
+    
+</span></p>
+
+    
+
+    </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <ul id="toc" class="section-nav">
+<li class="toc-entry toc-h2"><a href="#foreword">Foreword</a></li>
+<li class="toc-entry toc-h2"><a href="#local-value-numbering">Local Value Numbering</a></li>
+<li class="toc-entry toc-h2"><a href="#numbering-is-not-necessary">Numbering is Not Necessary</a></li>
+<li class="toc-entry toc-h2"><a href="#problems-and-implementations">Problems and Implementations</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#constant-elimination">Constant Elimination</a></li>
+<li class="toc-entry toc-h3"><a href="#math-operation-elimination">Math Operation Elimination</a></li>
+<li class="toc-entry toc-h3"><a href="#identity-elimination">Identity Elimination</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#conclusion">Conclusion</a></li>
+</ul><p>This is an article explaining my interpretation and implementation of <strong>local value numbering</strong>, a compiler optimization technique.</p>
+
+<h2 id="foreword">
+<a class="anchor" href="#foreword" aria-hidden="true"><span class="octicon octicon-link"></span></a>Foreword</h2>
+
+<p>In this article, I will first introduce local value numbering, then explain my interpretation of the algorithm.<br>
+Finally, I will explain my how I implemented the algorithm in Julia.<br>
+The language I am optimizing is <a href="https://github.com/sampsyo/bril">Bril</a>, an educational compiler IR designed for the compiler course <a href="https://www.cs.cornell.edu/courses/cs6120/2020fa/">CS 6120</a>.</p>
+
+<h2 id="local-value-numbering">
+<a class="anchor" href="#local-value-numbering" aria-hidden="true"><span class="octicon octicon-link"></span></a>Local Value Numbering</h2>
+
+<p><strong>Local value numbering</strong> (LVN) is an optimization technique targeting a block of code without branching (i.e. an if else block). 
+LVN optimizes the code such that <strong>every value is assigned to only one variable</strong>, aka the canonical variable. Consider the following example:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@main {
+    a: int = const 39;
+    b: int = const 39;
+}
+</code></pre></div></div>
+<p>After parsing the first line, LVN assigns the value 39 to the variable <code class="language-plaintext highlighter-rouge">a</code>. 
+Thus, when LVN sees that variable <code class="language-plaintext highlighter-rouge">b</code> is also assigned to the value 39, it considers <code class="language-plaintext highlighter-rouge">b</code> as redundant.
+The key insight is that LVN separates values (39) from variables (<code class="language-plaintext highlighter-rouge">a</code>, <code class="language-plaintext highlighter-rouge">b</code>), and replaces all references to the same value with its canonical variable.</p>
+
+<p>LVN separates values from variables by <strong>numbering the values</strong> and make variables refer to the numbers. 
+In this case, we would number the value 39 as 1, and variables <code class="language-plaintext highlighter-rouge">a</code> and <code class="language-plaintext highlighter-rouge">b</code> both refer to the number 1. 
+By doing this, we can optimize future references to <code class="language-plaintext highlighter-rouge">b</code>. This can be demonstrated by a more complex example:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@main {
+    a: int = const 39;
+    b: int = const 39;
+    c: int = add a b;
+}
+</code></pre></div></div>
+<p>When parsing the thrid line of code, LVN replaces the arguments (<code class="language-plaintext highlighter-rouge">a</code>, <code class="language-plaintext highlighter-rouge">b</code>) with the numbers they refer to (number 1). 
+Since the canonical variable of the value numbered 1 is <code class="language-plaintext highlighter-rouge">a</code>, both arguments are replaced with <code class="language-plaintext highlighter-rouge">a</code>.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>c: int = add a a;
+</code></pre></div></div>
+
+<h2 id="numbering-is-not-necessary">
+<a class="anchor" href="#numbering-is-not-necessary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Numbering is Not Necessary</h2>
+
+<p>In LVN, the situations where we need to access information include:</p>
+<ul>
+  <li>Querying the number of the value a variable points to</li>
+  <li>Assigning a value to a number and checking if a value exists</li>
+  <li>Querying the canonical variable of a value</li>
+</ul>
+
+<p>Therefore, the information we need to store include:</p>
+<ul>
+  <li>A mapping from variables to numbers</li>
+  <li>A mapping from values to numbers</li>
+  <li>A mapping from numbers to canonical variables</li>
+</ul>
+
+<p>When implementing LVN, I find it difficult to maintain three data structures. 
+Trying to simplify the logic, I realized that <strong>queries for the number of a value are actually queries the canoncial variable of the value</strong>.<br>
+The point of numbering is to make variables with identical values all refer to the same thing. 
+Besides, when transforming the code, variables are replaced with canoncial variables.
+Because every value is assigned to only one canonical variable, canonical variables can be used to identify values like numbers.<br>
+Thus, we only need to store a mapping from variables to canonical variables, and values to canonical variables.<br>
+The overall algorithm looks like this:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>var2canon: Variable -&gt; Canonical variable
+val2canon: Value -&gt; Canonical variable
+
+for instruction in instructions
+    value = create_value(instruction)
+    instruction = transform_instruction(instruction, value, var2canon, val2canon)
+end
+</code></pre></div></div>
+<ul>
+  <li>
+<code class="language-plaintext highlighter-rouge">create_value</code> is a function that creates the specific type of value based on the instruction.</li>
+  <li>
+<code class="language-plaintext highlighter-rouge">transform_instruction</code> is a function that eliminates unused variable while maintaining the canonical variable table.</li>
+</ul>
+
+<h2 id="problems-and-implementations">
+<a class="anchor" href="#problems-and-implementations" aria-hidden="true"><span class="octicon octicon-link"></span></a>Problems and Implementations</h2>
+
+<p>Let’s consider a trivial case to lay down the bare bones of the function.</p>
+
+<h3 id="constant-elimination">
+<a class="anchor" href="#constant-elimination" aria-hidden="true"><span class="octicon octicon-link"></span></a>Constant Elimination</h3>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@main {
+    a: int = const 39;
+    b: int = const 39;  # Eliminate this line
+}
+</code></pre></div></div>
+<p>The target is to eliminate <code class="language-plaintext highlighter-rouge">b</code>.<br>
+We first declare an abstract type <code class="language-plaintext highlighter-rouge">Value</code> and let different types of values inherit it.</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">abstract type</span><span class="nc"> Value</span> <span class="k">end</span>
+</code></pre></div></div>
+<p>A constant value is determined solely by the numerical value it contains:</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span><span class="nc"> Constant</span> <span class="o">&lt;:</span> <span class="n">Value</span>
+    <span class="n">value</span><span class="o">::</span><span class="kt">Int</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>for transforming instructions, we need to consider 2 situations:</p>
+<ul>
+  <li>If the value is already known and linked to a canonical variable:
+    <ul>
+      <li>Replace the instruction with an instruction linking to the canonical variable (operation “id”)</li>
+      <li>Map the current variable (“dest”) to the canonical variable</li>
+    </ul>
+  </li>
+  <li>If the value is a new value, update the canonical variable tables.</li>
+</ul>
+
+<p>In code, it would be like this:</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">function</span><span class="nf"> transforminstr</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">value</span><span class="o">::</span><span class="n">Constant</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">,</span> <span class="n">val2canon</span><span class="x">)</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="k">in</span> <span class="n">keys</span><span class="x">(</span><span class="n">val2canon</span><span class="x">)</span>  <span class="c"># Value is known</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">val2canon</span><span class="x">[</span><span class="n">value</span><span class="x">]</span>
+
+        <span class="c"># Replace the instruction</span>
+        <span class="n">instr</span><span class="x">[</span><span class="s">"op"</span><span class="x">]</span> <span class="o">=</span> <span class="s">"id"</span>
+        <span class="n">instr</span><span class="x">[</span><span class="s">"args"</span><span class="x">]</span> <span class="o">=</span> <span class="x">[</span><span class="n">var</span><span class="x">]</span>
+        <span class="n">delete!</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="s">"value"</span><span class="x">)</span>
+
+        <span class="c"># Update the table with the current variable</span>
+        <span class="n">var2canon</span><span class="x">[</span><span class="n">instr</span><span class="x">[</span><span class="s">"dest"</span><span class="x">]]</span> <span class="o">=</span> <span class="n">var</span>
+    <span class="k">else</span>
+        <span class="c"># Update the tables</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">instr</span><span class="x">[</span><span class="s">"dest"</span><span class="x">]</span>
+        <span class="n">var2canon</span><span class="x">[</span><span class="n">var</span><span class="x">]</span> <span class="o">=</span> <span class="n">var</span>
+        <span class="n">val2canon</span><span class="x">[</span><span class="n">value</span><span class="x">]</span> <span class="o">=</span> <span class="n">var</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<p>The main algorithm would be like this:</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">function</span><span class="nf"> canonicalizelocalvalue</span><span class="x">(</span><span class="n">instrs</span><span class="x">)</span>
+    <span class="n">var2canon</span> <span class="o">=</span> <span class="kt">Dict</span><span class="x">()</span>
+    <span class="n">val2canon</span> <span class="o">=</span> <span class="kt">Dict</span><span class="x">()</span>
+
+    <span class="k">for</span> <span class="n">instr</span> <span class="k">in</span> <span class="n">instrs</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="k">if</span> <span class="n">instr</span><span class="x">[</span><span class="s">"op"</span><span class="x">]</span> <span class="o">==</span> <span class="s">"const"</span>
+            <span class="n">Constant</span><span class="x">(</span><span class="n">instr</span><span class="x">[</span><span class="s">"value"</span><span class="x">])</span>
+        <span class="k">end</span>
+        <span class="n">transforminstr</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">value</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">,</span> <span class="n">val2canon</span><span class="x">)</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<h3 id="math-operation-elimination">
+<a class="anchor" href="#math-operation-elimination" aria-hidden="true"><span class="octicon octicon-link"></span></a>Math Operation Elimination</h3>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@main {
+    a: int = const 39;
+    b: int = add a a;
+    c: int = add a a;  # Eliminate this line
+}
+</code></pre></div></div>
+<p>A unqiue math operation is determined by its operation and two operands that are canonical variables.</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span><span class="nc"> MathOp</span> <span class="o">&lt;:</span> <span class="n">Value</span>
+    <span class="n">op</span><span class="o">::</span><span class="kt">String</span>
+    <span class="n">opr1</span><span class="o">::</span><span class="kt">String</span>
+    <span class="n">opr2</span><span class="o">::</span><span class="kt">String</span>
+<span class="k">end</span>
+
+<span class="k">function</span><span class="nf"> MathOp</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">)</span>
+    <span class="n">opr1</span><span class="x">,</span> <span class="n">opr2</span> <span class="o">=</span> <span class="x">(</span><span class="n">var2canon</span><span class="x">[</span><span class="n">var</span><span class="x">]</span> <span class="k">for</span> <span class="n">var</span> <span class="k">in</span> <span class="n">instr</span><span class="x">[</span><span class="s">"args"</span><span class="x">])</span>
+    <span class="n">MathOp</span><span class="x">(</span><span class="n">instr</span><span class="x">[</span><span class="s">"op"</span><span class="x">],</span> <span class="n">opr2</span><span class="x">,</span> <span class="n">opr2</span><span class="x">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>Transforming mathop instructions is slightly different from constant instructions. 
+Specifically, if the operation produces a new value, its operands need to be canonicalized.</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">function</span><span class="nf"> transforminstr</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">value</span><span class="o">::</span><span class="n">MathOp</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">,</span> <span class="n">val2canon</span><span class="x">)</span>
+    <span class="k">if</span> <span class="n">value</span> <span class="k">in</span> <span class="n">keys</span><span class="x">(</span><span class="n">val2canon</span><span class="x">)</span>
+        <span class="c"># ... Identical to constant case, omitted</span>
+    <span class="k">else</span>
+        <span class="n">instr</span><span class="x">[</span><span class="s">"args"</span><span class="x">]</span> <span class="o">=</span> <span class="x">[</span><span class="n">value</span><span class="o">.</span><span class="n">opr1</span><span class="x">,</span> <span class="n">value</span><span class="o">.</span><span class="n">opr2</span><span class="x">]</span>
+        <span class="c"># ... Identical to constant case, omitted</span>
+    <span class="k">end</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>Here I am using a feature in Julia called <strong>multiple dispatch</strong>. 
+Basically, Julia automatically selects the function to execute based on the type of <code class="language-plaintext highlighter-rouge">value</code>.<br>
+This provides multiple benefits during development:</p>
+<ul>
+  <li>By considering only one type of value, I can write specific code for one scenario, which improves logic.</li>
+  <li>I can continuously add new value types while changing little code.</li>
+</ul>
+
+<p>The main algorithm only needs to add a new condition:</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">value</span> <span class="o">=</span> <span class="k">if</span> <span class="n">instr</span><span class="x">[</span><span class="s">"op"</span><span class="x">]</span> <span class="o">==</span> <span class="s">"const"</span>
+    <span class="n">Constant</span><span class="x">(</span><span class="n">instr</span><span class="x">[</span><span class="s">"value"</span><span class="x">])</span>
+<span class="k">elseif</span> <span class="n">instr</span><span class="x">[</span><span class="s">"op"</span><span class="x">]</span> <span class="k">in</span> <span class="x">[</span><span class="s">"add"</span><span class="x">,</span> <span class="s">"mul"</span><span class="x">,</span> <span class="s">"sub"</span><span class="x">,</span> <span class="s">"div"</span><span class="x">]</span>
+    <span class="n">MathOp</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">)</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<h3 id="identity-elimination">
+<a class="anchor" href="#identity-elimination" aria-hidden="true"><span class="octicon octicon-link"></span></a>Identity Elimination</h3>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@main {
+    a: int = const 39;
+    b: int = const 39;
+    c: int = id b;  # Replace b with a
+}
+</code></pre></div></div>
+<p>The value of an identity instruction is simply a reference to its canonical variable.</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span><span class="nc"> Identity</span> <span class="o">&lt;:</span> <span class="n">Value</span>
+    <span class="n">ref_var</span><span class="o">::</span><span class="kt">String</span>
+<span class="k">end</span>
+
+<span class="k">function</span><span class="nf"> Identity</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">)</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="n">instr</span><span class="x">[</span><span class="s">"args"</span><span class="x">][</span><span class="mi">1</span><span class="x">]</span>  <span class="c"># Get the referenced variable</span>
+    <span class="n">Identity</span><span class="x">(</span><span class="n">var2canon</span><span class="x">[</span><span class="n">var</span><span class="x">])</span>
+<span class="k">end</span>
+</code></pre></div></div>
+<p>An identity instruction has a trivial case of transformation: canonicalize the variable used and update the variable table.</p>
+<div class="language-julia highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">function</span><span class="nf"> transform_instr</span><span class="x">(</span><span class="n">instr</span><span class="x">,</span> <span class="n">value</span><span class="o">::</span><span class="n">Identity</span><span class="x">,</span> <span class="n">var2canon</span><span class="x">,</span> <span class="n">val2canon</span><span class="x">)</span>
+    <span class="n">instr</span><span class="x">[</span><span class="s">"args"</span><span class="x">][</span><span class="mi">1</span><span class="x">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">ref_var</span>
+    <span class="n">var2canon</span><span class="x">[</span><span class="n">instr</span><span class="x">[</span><span class="s">"dest"</span><span class="x">]]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">ref_var</span>
+<span class="k">end</span>
+</code></pre></div></div>
+
+<h2 id="conclusion">
+<a class="anchor" href="#conclusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Conclusion</h2>
+
+<p>This is an article introducing <strong>local value numbering</strong> and putting my own spin on it. 
+In addition, I provided an implementation in Julia, which demonstrates the feature <strong>multiple dispatch</strong>.<br>
+A few caveats:</p>
+<ul>
+  <li>This is my first attempt in writing Julia. I am not sure not sure whether I picked a decent abstraction and used multiple dispatch well. 
+<strong>Please do not hesitate to give me suggestions!</strong>
+</li>
+  <li>The implementation fails to consider edge cases such as reassignments, and has great room for improvement.</li>
+</ul>
+
+<p>Finally, I would like to thank <a href="https://twitter.com/samps">Professor Sampson</a> for offering such a great compiler course, and I look forward to the future lessons!</p>
+
+  </div><a class="u-url" href="/blog/2021/08/21/lvc-julia.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/blog/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/blog/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/blog/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>Kimbo Chen&#39;s personal blog.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li><a rel="me" href="https://github.com/kimbochen" target="_blank" title="kimbochen"><svg class="svg-icon grey"><use xlink:href="/blog/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/kimbochen" target="_blank" title="kimbochen"><svg class="svg-icon grey"><use xlink:href="/blog/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
