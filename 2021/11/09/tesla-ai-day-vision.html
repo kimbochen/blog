@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="twitter:card" content="summary_large_image" /><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Tesla AI Day - Vision | Kimbo Chen</title>
+<meta name="generator" content="Jekyll v4.1.1" />
+<meta property="og:title" content="Tesla AI Day - Vision" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In this article, I will summarize the Tesla AI Day technical deep dive of Tesla Vision, the vision component of Tesla Autopilot. Moreover, I will try to gather everything referenced in the presentation, such as the mentioned research papers. I also added timestamps of the presentation for each section ." />
+<meta property="og:description" content="In this article, I will summarize the Tesla AI Day technical deep dive of Tesla Vision, the vision component of Tesla Autopilot. Moreover, I will try to gather everything referenced in the presentation, such as the mentioned research papers. I also added timestamps of the presentation for each section ." />
+<link rel="canonical" href="https://kimbochen.github.io/blog/2021/11/09/tesla-ai-day-vision.html" />
+<meta property="og:url" content="https://kimbochen.github.io/blog/2021/11/09/tesla-ai-day-vision.html" />
+<meta property="og:site_name" content="Kimbo Chen" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2021-11-09T00:00:00-06:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Tesla AI Day - Vision" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2021-11-09T00:00:00-06:00","datePublished":"2021-11-09T00:00:00-06:00","description":"In this article, I will summarize the Tesla AI Day technical deep dive of Tesla Vision, the vision component of Tesla Autopilot. Moreover, I will try to gather everything referenced in the presentation, such as the mentioned research papers. I also added timestamps of the presentation for each section .","headline":"Tesla AI Day - Vision","mainEntityOfPage":{"@type":"WebPage","@id":"https://kimbochen.github.io/blog/2021/11/09/tesla-ai-day-vision.html"},"url":"https://kimbochen.github.io/blog/2021/11/09/tesla-ai-day-vision.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/blog/assets/css/style.css"><link type="application/atom+xml" rel="alternate" href="https://kimbochen.github.io/blog/feed.xml" title="Kimbo Chen" /><link rel="shortcut icon" type="image/x-icon" href="/blog/images/favicon.ico"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Primer/15.2.0/primer.css" integrity="sha512-xTz2ys4coGAOz8vuV1NcQBkgVmKhsSEtjbqyMJbBHRplFuvKIUo6xhLHpAyPt9mfR6twHJgn9OgVLuqOvjeBhg==" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.14.0/css/all.min.css" integrity="sha512-1PKOgIY59xJ8Co8+NE6FZ+LOAZKjy+KY8iq0G4B3CyeY6wYHN3yt9PW0XpSriVlkMXe40PTKnXrLnZ9+fkDaog==" crossorigin="anonymous" />
+
+<script>
+function wrap_img(fn) {
+    if (document.attachEvent ? document.readyState === "complete" : document.readyState !== "loading") {
+        var elements = document.querySelectorAll(".post img");
+        Array.prototype.forEach.call(elements, function(el, i) {
+            if (el.getAttribute("title") && (el.className != "emoji")) {
+                const caption = document.createElement('figcaption');
+                var node = document.createTextNode(el.getAttribute("title"));
+                caption.appendChild(node);
+                const wrapper = document.createElement('figure');
+                wrapper.className = 'image';
+                el.parentNode.insertBefore(wrapper, el);
+                el.parentNode.removeChild(el);
+                wrapper.appendChild(el);
+                wrapper.appendChild(caption);
+            }
+        });
+    } else { document.addEventListener('DOMContentLoaded', fn); }
+}
+window.onload = wrap_img;
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+    // add link icon to anchor tags
+    var elem = document.querySelectorAll(".anchor-link")
+    elem.forEach(e => (e.innerHTML = '<i class="fas fa-link fa-xs"></i>'));
+    });
+</script>
+</head>
+<body><header class="site-header">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/blog/">Kimbo Chen</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/blog/about/">About Me</a><a class="page-link" href="/blog/search/">Search</a><a class="page-link" href="/blog/categories/">Tags</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Tesla AI Day - Vision</h1><p class="post-meta post-meta-title"><time class="dt-published" datetime="2021-11-09T00:00:00-06:00" itemprop="datePublished">
+        Nov 9, 2021
+      </time>
+       • <span class="read-time" title="Estimated read time">
+    
+    
+      10 min read
+    
+</span></p>
+
+    
+
+    </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <ul id="toc" class="section-nav">
+<li class="toc-entry toc-h2"><a href="#overview">Overview</a></li>
+<li class="toc-entry toc-h2"><a href="#neural-network-backbone">Neural Network Backbone</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#regnets">RegNets</a></li>
+<li class="toc-entry toc-h3"><a href="#multi-scale-feature-pyramid-fusion">Multi-scale Feature Pyramid Fusion</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#image-to-bev-transform--multi-cam-fusion">Image-to-BEV Transform + Multi-cam Fusion</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#challenges">Challenges</a>
+<ul>
+<li class="toc-entry toc-h4"><a href="#depth-prediction-inconsistency">Depth Prediction Inconsistency</a></li>
+<li class="toc-entry toc-h4"><a href="#object-detection-inconsistency">Object Detection Inconsistency</a></li>
+<li class="toc-entry toc-h4"><a href="#variations-in-camera-calibration">Variations in Camera Calibration</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h3"><a href="#learning-where-to-look">Learning Where to Look</a>
+<ul>
+<li class="toc-entry toc-h4"><a href="#rectifying-to-a-common-virtual-camera">Rectifying to a Common Virtual Camera</a></li>
+<li class="toc-entry toc-h4"><a href="#query-vectors">Query Vectors</a></li>
+<li class="toc-entry toc-h4"><a href="#attention">Attention</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h3"><a href="#results">Results</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#video-neural-net-architecture">Video Neural Net Architecture</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#feature-queue">Feature Queue</a></li>
+<li class="toc-entry toc-h3"><a href="#video-module">Video Module</a></li>
+<li class="toc-entry toc-h3"><a href="#improvements">Improvements</a>
+<ul>
+<li class="toc-entry toc-h4"><a href="#temporary-occlusion">Temporary Occlusion</a></li>
+<li class="toc-entry toc-h4"><a href="#depth-and-velocity">Depth and Velocity</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#multi-task-learning-hydranets">Multi-task Learning HydraNets</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#task-specific-detection-heads">Task-specific Detection Heads</a></li>
+<li class="toc-entry toc-h3"><a href="#hydranet">HydraNet</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#recap">Recap</a></li>
+<li class="toc-entry toc-h2"><a href="#improvement-opportunities">Improvement Opportunities</a>
+<ul>
+<li class="toc-entry toc-h3"><a href="#late-time-and-space-fusion">Late Time and space Fusion</a></li>
+<li class="toc-entry toc-h3"><a href="#postprocessing-dense-rasters">Postprocessing Dense Rasters</a></li>
+</ul>
+</li>
+<li class="toc-entry toc-h2"><a href="#end-note">End Note</a></li>
+</ul><p>In this article, I will summarize the Tesla AI Day technical deep dive of Tesla Vision, the vision component of Tesla Autopilot.
+Moreover, I will try to gather everything referenced in the presentation, such as the mentioned research papers.
+I also added timestamps of the presentation for each section .</p>
+
+<h2 id="overview">
+<a class="anchor" href="#overview" aria-hidden="true"><span class="octicon octicon-link"></span></a>Overview</h2>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=2924">timestamp</a></p>
+</blockquote>
+
+<p>Tesla Vision is a neural network that processes raw images and outputs the <strong>vector space</strong>.<br>
+The <strong>vector space</strong> is a 3-dimensional representation of everything needed for driving,<br>
+e.g. curbs, traffic signs, and positions of cars.</p>
+
+<h2 id="neural-network-backbone">
+<a class="anchor" href="#neural-network-backbone" aria-hidden="true"><span class="octicon octicon-link"></span></a>Neural Network Backbone</h2>
+
+<p>Each of the 8 cameras captures 1280 x 960 12-Bit (HDR) images at 36 Hz, which are then fed into a feature extractor.<br>
+Tesla Vision uses RegNets, a class of ResNets, as feature extractors.</p>
+
+<h3 id="regnets">
+<a class="anchor" href="#regnets" aria-hidden="true"><span class="octicon octicon-link"></span></a>RegNets</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3133">timestamp</a></p>
+</blockquote>
+
+<p>RegNets offer a nice neural network design space that allows tradeoffs between latency and accuracy.<br>
+RegNets are proposed in <a href="https://arxiv.org/abs/2003.13678"><em>Designing Network Design Spaces by Radosavovic et al</em></a>.<br>
+Here’s a high-level description of what the paper is about:</p>
+<ul>
+  <li>A <strong>network design space</strong> is defined as a population of model architectures parameterized by certain aspects (e.g. network depth).</li>
+  <li>The author proposes principles to come up with a design space that contains a high concentration of top-performing models.
+That is, <em>designing</em> network design spaces.</li>
+  <li>Concretely, the author progressively simplifies the design space (e.g. setting network depth to a certain number)
+based on insights gained from the statistics of <em>n</em> sampled models.</li>
+  <li>The author applied the methodology to ResNets and designed RegNets, which work well under different compute power limits.</li>
+</ul>
+
+<h3 id="multi-scale-feature-pyramid-fusion">
+<a class="anchor" href="#multi-scale-feature-pyramid-fusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Multi-scale Feature Pyramid Fusion</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3175">timestamp</a></p>
+</blockquote>
+
+<p>The backbone outputs a number of features at different scales with different purposes:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Resolution</th>
+      <th>Channel counts</th>
+      <th>Neuron behavior</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>High</td>
+      <td>Low</td>
+      <td>Scrutinize image details</td>
+    </tr>
+    <tr>
+      <td>Low</td>
+      <td>High</td>
+      <td>See the whole image and have the context</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><img src="/blog/images/tesla_ai_day/regnets.png" alt=""></p>
+
+<p>A feature pyramid network is then used to process the multi-scale features.<br>
+The network gets features of different scales to communicate effectively and share information.<br>
+For instance, the neural network leverages context and details to detect the car.</p>
+
+<p><img src="/blog/images/tesla_ai_day/multiscale_fpn.png" alt=""></p>
+
+<p>Tesla Vision uses BiFPN, proposed in
+<a href="https://arxiv.org/abs/1911.09070"><em>EfficientDet: Scalable and Efficient Object Detection by Tan et al</em></a>.
+BiFPN is a feature pyramid network focused on efficiency, and here I summarize its main features:</p>
+
+<ul>
+  <li>Efficient Cross-scale Connections: Nodes that have only one input edge are removed based on the intuition that
+single-input nodes contributes less to feature fusion.
+<img src="/blog/images/tesla_ai_day/panet_vs_bifpn.png" alt="">
+</li>
+  <li>Fast Normalized Feature Fusion: Additional weight for each input is added,
+which lets the network learn the importance of each feature. To improve training stability,
+the author proposes a weight normalization approach that is much more efficient than softmax operation.</li>
+</ul>
+
+<h2 id="image-to-bev-transform--multi-cam-fusion">
+<a class="anchor" href="#image-to-bev-transform--multi-cam-fusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Image-to-BEV Transform + Multi-cam Fusion</h2>
+
+<p>Driving is done on the vector space, so image space predictions need to be casted into a bird’s eye view (BEV).
+However, the team faced some challenges when trying to do so.</p>
+
+<h3 id="challenges">
+<a class="anchor" href="#challenges" aria-hidden="true"><span class="octicon octicon-link"></span></a>Challenges</h3>
+
+<h4 id="depth-prediction-inconsistency">
+<a class="anchor" href="#depth-prediction-inconsistency" aria-hidden="true"><span class="octicon octicon-link"></span></a>Depth Prediction Inconsistency</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3420">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/percam_depth_pred.png" alt=""></p>
+
+<p>Image space predictions look great, but once they are casted into the vector space, predictions look terrible.<br>
+The reason is that decent vector space predictions require <strong>accurate depth predictions in every pixel</strong>.
+What makes it even more difficult is that cameras may be occluded, creating inconsistency in predictions.</p>
+
+<h4 id="object-detection-inconsistency">
+<a class="anchor" href="#object-detection-inconsistency" aria-hidden="true"><span class="octicon octicon-link"></span></a>Object Detection Inconsistency</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3466">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/percam_object_det.png" alt=""></p>
+
+<p>When an object spans across multiple cameras (In this case, 5 out of 8 cameras),
+it is difficult to fuse measurements of multiple images predictions,
+causing incoherent vector space predicitons.</p>
+
+<h4 id="variations-in-camera-calibration">
+<a class="anchor" href="#variations-in-camera-calibration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Variations in Camera Calibration</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3693">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/camera_diff.png" alt=""></p>
+
+<p>All of the cars are slightly cockeyed in a different way.
+For instance, the camera calibration of a pillar camera varies from car to car.
+The figure above shows the distribution of camera calibrations in the fleet.
+To do image-to-BEV transforms, camera calibration is needed.</p>
+
+<h3 id="learning-where-to-look">
+<a class="anchor" href="#learning-where-to-look" aria-hidden="true"><span class="octicon octicon-link"></span></a>Learning Where to Look</h3>
+
+<p>To tackle these problems, the team designed the neural network such that it <strong>directly makes predictions in vector space</strong>.<br>
+The neural network needs to do 2 things:</p>
+
+<ul>
+  <li>Transform image space features to BEV features.</li>
+  <li>Fuse information from different cameras, i.e. for every position in the vector space,
+learn where (in the image space) to look for information.</li>
+</ul>
+
+<h4 id="rectifying-to-a-common-virtual-camera">
+<a class="anchor" href="#rectifying-to-a-common-virtual-camera" aria-hidden="true"><span class="octicon octicon-link"></span></a>Rectifying to a Common Virtual Camera</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3710">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/camera_rectify.png" alt=""></p>
+
+<p>All of the images are transformed into a common virtual camera using a special rectification transform.
+This improves the data quality of fused images.
+For instance, below is the average of all images captured by repeater cameras on a car.</p>
+
+<p><img src="/blog/images/tesla_ai_day/rectified.png" alt="">
+Notice how the back mirror at the upper right gets crisper.</p>
+
+<hr>
+
+<p>Regarding the neural network, the architecture used is Transformer,
+proposed in <a href="https://arxiv.org/abs/1706.03762"><em>Attention Is All You Need by Vaswani et al</em></a>.
+Specifically, one or more multi-head self-attention blocks is used.</p>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3555">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/transformer.png" alt=""></p>
+
+<h4 id="query-vectors">
+<a class="anchor" href="#query-vectors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Query Vectors</h4>
+
+<p>A raster of the size of the output space is tiled with positional encodings of the output space.<br>
+Positional encoding is information about the position of every element in the raster,
+which is represented using sine and cosine functions.<br>
+These are then encoded with an MLP into a set of query vectors.</p>
+
+<h4 id="attention">
+<a class="anchor" href="#attention" aria-hidden="true"><span class="octicon octicon-link"></span></a>Attention</h4>
+
+<p>Image features from each camera creates a key and value vector.<br>
+Keys and queries interact multiplicatively to compute the correlation between every key-query pair.
+That is, the neural network is <strong>learning what features are important / to attend to a given certain query</strong>.
+Here’s an example:</p>
+<ul>
+  <li>A key vector is created from image features of the pillar camera, containing information about location and what it sees.</li>
+  <li>A query vector is asking for a certain type of feature at some position of the output space.</li>
+</ul>
+
+<h3 id="results">
+<a class="anchor" href="#results" aria-hidden="true"><span class="octicon octicon-link"></span></a>Results</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3755">timestamp</a></p>
+</blockquote>
+
+<p>After doing all the engineering correctly, which is extremely difficult, the neural network performs drastically better.<br>
+For instance, there results of curb line detection in the vector space are like night and day.
+<img src="/blog/images/tesla_ai_day/results_depth_pred.png" alt=""></p>
+
+<p>Object detection is also improved, especially for large objects.
+Here we can see that the multi-camera setup (blue bounding boxes) predicts the truck a lot more accurately.
+<img src="/blog/images/tesla_ai_day/results_object_det.png" alt=""></p>
+
+<h2 id="video-neural-net-architecture">
+<a class="anchor" href="#video-neural-net-architecture" aria-hidden="true"><span class="octicon octicon-link"></span></a>Video Neural Net Architecture</h2>
+
+<p>Many predictions require not only information of static images but also <strong>video context</strong>.
+For example, it is impossible to predict an vehicle’s velocity based on a single image. 
+Thus, the neural network needs <em>memory</em> for remembering what happened in order to deduce new information.</p>
+
+<p><img src="/blog/images/tesla_ai_day/video_nn.png" alt=""></p>
+
+<p>The team converged on this solution, which includes a feature queue and a video module.</p>
+<ul>
+  <li>Feature queue caches features over time.</li>
+  <li>Video module fuses the cached features temporally.</li>
+  <li>Kinematics, e.g. the car’s own velocity and acceleration, is inserted to keep track of how the car has traveled.</li>
+</ul>
+
+<h3 id="feature-queue">
+<a class="anchor" href="#feature-queue" aria-hidden="true"><span class="octicon octicon-link"></span></a>Feature Queue</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3894">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/feature_queue.png" alt=""></p>
+
+<p>Each element in the feature queue is a concatenation of multi-cam features, kinematics, and positional encodings
+(My interpretation of positional encoding is that it contains the information of the order a feature is pushed).<br>
+Two types of queues are used based on different rules of <strong>when to push</strong>.</p>
+
+<ul>
+  <li>
+<strong>Time-based queue</strong>: Push periodically, e.g. every 27 milliseconds.
+This gives the neural network the ability to detect occluded objects by referencing previous features.</li>
+  <li>
+<strong>Space-based queue</strong>: Push every time the car travels a certain distance, e.g. every 1 meter.
+Time-based queue may discard important information that occured a long time ago,
+e.g. line markings and signs may be forgotten after the car waits for a long red light.
+Thus, a space-based queue is used to store spatially temporal information.</li>
+</ul>
+
+<h3 id="video-module">
+<a class="anchor" href="#video-module" aria-hidden="true"><span class="octicon octicon-link"></span></a>Video Module</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=4028">timestamp</a></p>
+</blockquote>
+
+<p><em>Spatial Recurrent Neural Networks</em> are used to temporally fuse information.</p>
+
+<p><img src="/blog/images/tesla_ai_day/spatial_rnn.png" alt=""></p>
+
+<p>RNN cells are organized as a 2D lattice, representing the two-dimensional surface we drive on.
+Hidden states of the cells are updated only when the car is nearby or has visibility.
+Concretely, as the car is driving around, the kinematics is used to integrate the car’s position into the hidden feature grid.</p>
+
+<p>Here is the visualization of some channels of the hidden feature grid:</p>
+
+<p><img src="/blog/images/tesla_ai_day/rnn_viz1.png" alt=""></p>
+
+<p>We can see that each channel is keeping track of different aspects of the road, e.g. edges and the road surface.
+Consider watching the visualization in the presentation video because the visualization is actually dynamic.
+<a href="https://youtu.be/j0z4FweCy4M?t=4070">Here’s the link.</a></p>
+
+<p>Spatial RNN effectively gives the neural network to <strong>selectively read and write information to the memory</strong>.</p>
+
+<h3 id="improvements">
+<a class="anchor" href="#improvements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Improvements</h3>
+
+<h4 id="temporary-occlusion">
+<a class="anchor" href="#temporary-occlusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Temporary Occlusion</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=4175">timestamp</a></p>
+</blockquote>
+
+<p>The video neural network improved object detection’s robustness to temporary occlusion.</p>
+
+<p>When the car is occluded, the video neural network (blue) retains detection.
+<img src="/blog/images/tesla_ai_day/occlude.png" alt=""></p>
+
+<p>When the car is partially occluded, the single-frame neural network (orange)
+makes terrible predictions based on incomplete information,
+whereas the video neural network (blue) knows to discard the current occluded scene.
+<img src="/blog/images/tesla_ai_day/temp_occlude.png" alt=""></p>
+
+<h4 id="depth-and-velocity">
+<a class="anchor" href="#depth-and-velocity" aria-hidden="true"><span class="octicon octicon-link"></span></a>Depth and Velocity</h4>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=4237">timestamp</a></p>
+</blockquote>
+
+<p>Video neural network also improved depth and velocity prediction.</p>
+
+<p>Below is a comparison of depth (upper column) and velocity (lower column) prediction.<br>
+We can see that the video neural network (blue) performs on par with radar signals (green),
+while the single-frame network (orange) struggles to predict depth accurately enough to produce decent velocity prediction.</p>
+
+<p><img src="/blog/images/tesla_ai_day/video_depth_pred.png" alt=""></p>
+
+<h2 id="multi-task-learning-hydranets">
+<a class="anchor" href="#multi-task-learning-hydranets" aria-hidden="true"><span class="octicon octicon-link"></span></a>Multi-task Learning HydraNets</h2>
+
+<h3 id="task-specific-detection-heads">
+<a class="anchor" href="#task-specific-detection-heads" aria-hidden="true"><span class="octicon octicon-link"></span></a>Task-specific Detection Heads</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3199">timestamp</a></p>
+</blockquote>
+
+<p>The video features are then fed into a number of detection heads, which are one-stage, YOLO-like detectors.
+A prediction contains:</p>
+<ul>
+  <li>A raster with 1 bit per position that indicates whether there is an object (e.g. a car)</li>
+  <li>If there is an object, output its additional attributes (e.g. car type)</li>
+</ul>
+
+<h3 id="hydranet">
+<a class="anchor" href="#hydranet" aria-hidden="true"><span class="octicon octicon-link"></span></a>HydraNet</h3>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=3227">timestamp</a></p>
+</blockquote>
+
+<p>The architecture has a common backbone and branches off to multiple detection tasks, which is why it is named <em>HydraNet</em>.
+HydraNet provides a number of benefits:</p>
+<ol>
+  <li>Amortized forward pass inference at test time because of feature sharing</li>
+  <li>De-couples tasks so that tasks can be fine-tuned individually</li>
+  <li>Backbone features can be cached to disk and used for fine-tuning</li>
+</ol>
+
+<p>A typical training workflow would be like this:</p>
+<ol>
+  <li>End-to-end training: Train everything jointly</li>
+  <li>Cache multi-scale features</li>
+  <li>Fine-tune off of those feature for each task</li>
+</ol>
+
+<h2 id="recap">
+<a class="anchor" href="#recap" aria-hidden="true"><span class="octicon octicon-link"></span></a>Recap</h2>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=4279">timestamp</a></p>
+</blockquote>
+
+<p><img src="/blog/images/tesla_ai_day/hydranet.png" alt=""></p>
+
+<ul>
+  <li>Raw images go through <strong>rectification</strong> layer to transform to a common virtual camera.</li>
+  <li>Rectified images pass through <strong>RegNets</strong> to process features at different scales.</li>
+  <li>Multi-scale features are fused by a <strong>BiFPN</strong>.</li>
+  <li>The fused features are fed into a <strong>Transformer</strong> to rerepresent it in the vector space.</li>
+  <li>Vector space features are pushed into <strong>feature queues</strong> based on time and space.</li>
+  <li>Features in the queues are processed by a <strong>spatial RNN video module</strong>.</li>
+  <li>The processed features are passed into the trunks of the <strong>HydraNet</strong> for detection tasks.</li>
+</ul>
+
+<h2 id="improvement-opportunities">
+<a class="anchor" href="#improvement-opportunities" aria-hidden="true"><span class="octicon octicon-link"></span></a>Improvement Opportunities</h2>
+
+<blockquote>
+  <p><a href="https://youtu.be/j0z4FweCy4M?t=4337">timestamp</a></p>
+</blockquote>
+
+<h3 id="late-time-and-space-fusion">
+<a class="anchor" href="#late-time-and-space-fusion" aria-hidden="true"><span class="octicon octicon-link"></span></a>Late Time and space Fusion</h3>
+
+<p>Time and space fusion occurs at nearly the end of inference.
+Thus, video module and image feature extractors can be replaced with earlier fusion networks, e.g. optical flow networks.
+Optical flow is the pixel-wise motions between consecutive images.<br>
+Cost volume is also mentioned. Here’s a basic explanation:</p>
+<ul>
+  <li>Cost is a measurement of the disparity between the two image pixels at the same location.</li>
+  <li>When the cost of a pixel in an <em>H x W</em> image is represented as a vector of size <em>L</em>,
+the cost spans a volume of <em>H x W x L</em>, hence the name.</li>
+</ul>
+
+<h3 id="postprocessing-dense-rasters">
+<a class="anchor" href="#postprocessing-dense-rasters" aria-hidden="true"><span class="octicon octicon-link"></span></a>Postprocessing Dense Rasters</h3>
+
+<p>The neural network outputs are dense rasters, which are costly to postprocess.
+This is not ideal because the neural network is under strict latency requirements.
+The team is looking into ways of predicting just the sparse structure of the road.</p>
+
+<h2 id="end-note">
+<a class="anchor" href="#end-note" aria-hidden="true"><span class="octicon octicon-link"></span></a>End Note</h2>
+
+<p>I really like how Andrej Karpathy, Sr. Director of AI at Tesla, explains the design choices with problems.
+In addition, I noticed the emphasis on efficiency: RegNets and BiFPN are all architectures that focus on efficiency.
+Thank you for reading this long article, I hope you enjoyed it.</p>
+
+  </div><a class="u-url" href="/blog/2021/11/09/tesla-ai-day-vision.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/blog/"></data>
+
+  <div class="wrapper">
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col">
+        <p class="feed-subscribe">
+          <a href="/blog/feed.xml">
+            <svg class="svg-icon orange">
+              <use xlink:href="/blog/assets/minima-social-icons.svg#rss"></use>
+            </svg><span>Subscribe</span>
+          </a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <p>Kimbo Chen&#39;s personal blog.</p>
+      </div>
+    </div>
+
+    <div class="social-links"><ul class="social-media-list"><li><a rel="me" href="https://github.com/kimbochen" target="_blank" title="kimbochen"><svg class="svg-icon grey"><use xlink:href="/blog/assets/minima-social-icons.svg#github"></use></svg></a></li><li><a rel="me" href="https://twitter.com/kimbochen" target="_blank" title="kimbochen"><svg class="svg-icon grey"><use xlink:href="/blog/assets/minima-social-icons.svg#twitter"></use></svg></a></li></ul>
+</div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
